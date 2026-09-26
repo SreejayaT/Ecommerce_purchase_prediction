@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Predicting Purchase Intent — Online Shoppers ML</title>
-<meta name="description" content="A machine learning pipeline that predicts which online shopping sessions will end in a purchase, from browsing behaviour alone.">
+<meta name="description" content="A machine learning pipeline that predicts which online shopping sessions will end in a purchase, using validation-set threshold selection and held-out test evaluation.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -346,7 +346,7 @@
   <div class="wrap">
     <p class="kicker">Online Shoppers Purchase Intention · classification project</p>
     <h1 class="title">Most sessions browse. <em>Few convert.</em></h1>
-    <p class="hero-sub">A supervised learning pipeline that separates the two from raw browsing behaviour — page counts, time on page, bounce and exit rates — no purchase history required. Trained and evaluated on 12,330 real e-commerce sessions.</p>
+    <p class="hero-sub">A supervised learning pipeline that separates the two from raw browsing behaviour — page counts, time on page, bounce and exit rates — no purchase history required. Trained on 12,330 real e-commerce sessions, with model-specific decision thresholds selected on validation data and then evaluated on an untouched test set.</p>
     <div class="stat-row">
       <div class="stat"><div class="n num">12,330</div><div class="l">sessions analysed</div></div>
       <div class="stat"><div class="n num accent">15.5%</div><div class="l">end in a purchase</div></div>
@@ -366,7 +366,7 @@
       </div>
       <div class="content-col">
         <p>Across the dataset, roughly 1 in 6.5 sessions results in a purchase. A model that always predicts &ldquo;no purchase&rdquo; is already 84% accurate — and completely useless for a marketing team trying to find the shoppers worth targeting.</p>
-        <p>The real objective isn&rsquo;t accuracy. It&rsquo;s recall on the minority class: catching as many genuine buyers as possible, without flooding the campaign list with browsers who were never going to convert. Every model below was trained with that trade-off in mind, using class weighting and probability-threshold tuning rather than raw accuracy.</p>
+        <p>The real objective isn&rsquo;t accuracy. It&rsquo;s the trade-off between precision and recall on the minority purchase class. Every model below uses class weighting and a decision threshold selected independently on the validation set, rather than tuning the threshold on the final test set.</p>
       </div>
     </div>
   </section>
@@ -428,16 +428,16 @@
           <div class="step">
             <div class="idx num">01</div>
             <div>
-              <h3>Stratified split</h3>
-              <p>80/20 train/test split, stratified on the target so both sets keep the same 15.5% purchase rate.</p>
-              <code>train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)</code>
+              <h3>Stratified train / validation / test split</h3>
+              <p>The data are separated into training, validation, and final test sets. Stratification preserves the purchase-rate balance across splits.</p>
+              <code>train → validation → untouched test</code>
             </div>
           </div>
           <div class="step">
             <div class="idx num">02</div>
             <div>
-              <h3>Scale on train only</h3>
-              <p>A StandardScaler is fit on the training set alone, then applied to the test set — preventing any leakage of test-set statistics into training.</p>
+              <h3>Fit preprocessing on training data</h3>
+              <p>Preprocessing is fitted using the training data and then applied consistently to validation and test data, preventing information from the held-out test set from influencing model development.</p>
             </div>
           </div>
           <div class="step">
@@ -457,8 +457,8 @@
           <div class="step">
             <div class="idx num">05</div>
             <div>
-              <h3>Tune the decision threshold</h3>
-              <p>Rather than accepting the default 0.5 cutoff, probabilities are swept across a range of thresholds to find the one that maximises F1 on the purchase class.</p>
+              <h3>Select thresholds on validation data</h3>
+              <p>Each model's predicted probabilities are evaluated on the validation set. The threshold that gives the chosen operating point is selected there, then locked before the final test evaluation.</p>
             </div>
           </div>
         </div>
@@ -470,7 +470,7 @@
     <div class="wrap grid-2">
       <div class="label-col">
         <h2>Model scoreboard</h2>
-        <p class="tag">Evaluated on 2,466 held-out sessions</p>
+        <p class="tag">Final evaluation on 2,466 untouched test sessions</p>
       </div>
       <div class="content-col">
         <div class="board">
@@ -481,7 +481,7 @@
           </div>
 
           <div class="row">
-            <div class="model-name">Logistic Regression<span class="tag">baseline, balanced class weights</span></div>
+            <div class="model-name">Logistic Regression<span class="tag">balanced class weights · validation threshold 0.50</span></div>
             <div class="auc num">87.3<span class="u">%</span></div>
             <div class="metrics">
               <div class="metric"><span class="m-label">Precision</span><div class="bar-track"><div class="bar-fill browse" style="width:55%"></div></div><span class="m-val num">0.55</span></div>
@@ -491,7 +491,7 @@
           </div>
 
           <div class="row">
-            <div class="model-name">Random Forest<span class="tag">300 trees, threshold 0.35</span></div>
+            <div class="model-name">Random Forest<span class="tag">300 trees · validation threshold 0.35</span></div>
             <div class="auc num">92.0<span class="u">%</span></div>
             <div class="metrics">
               <div class="metric"><span class="m-label">Precision</span><div class="bar-track"><div class="bar-fill browse" style="width:64%"></div></div><span class="m-val num">0.64</span></div>
@@ -501,7 +501,7 @@
           </div>
 
           <div class="row best">
-            <div class="model-name">XGBoost<span class="tag">tuned threshold ≈ 0.49 · best overall</span></div>
+            <div class="model-name">XGBoost<span class="tag">validation-selected threshold ≈ 0.5768</span></div>
             <div class="auc num" style="color:var(--convert)">92.1<span class="u">%</span></div>
             <div class="metrics">
               <div class="metric"><span class="m-label">Precision</span><div class="bar-track"><div class="bar-fill browse" style="width:60%"></div></div><span class="m-val num">0.60</span></div>
@@ -522,19 +522,22 @@
   <section id="threshold">
     <div class="wrap grid-2">
       <div class="label-col">
-        <h2>Moving the cutoff</h2>
-        <p class="tag">Default 0.5 isn&rsquo;t optimal</p>
+        <h2>Validation-selected cutoffs</h2>
+        <p class="tag">Thresholds chosen before the final test</p>
       </div>
       <div class="content-col">
-        <p>XGBoost&rsquo;s output is a probability, not a label. Sweeping the decision threshold from 0.1 to 0.9 and scoring F1 at each point shows the default 0.5 cutoff is close, but not quite the best trade-off between precision and recall.</p>
+        <p>A probability becomes a class label only after applying a decision threshold. Because the three models produce differently calibrated probability distributions, the notebook selects the operating threshold independently for each model using the validation set.</p>
         <div class="thresh-card">
           <div>
-            <div class="big num">0.49<span class="u">threshold</span></div>
+            <div class="big num">0.50<span class="u">LR</span></div>
           </div>
           <div>
-            <div class="big num">0.673<span class="u">best F1</span></div>
+            <div class="big num">0.35<span class="u">RF</span></div>
           </div>
-          <p>Found by scanning 100 candidate thresholds and scoring each against the held-out set — a small adjustment from the default that better balances catching real buyers against chasing false positives.</p>
+          <div>
+            <div class="big num">0.5768<span class="u">XGB</span></div>
+          </div>
+          <p>These thresholds are selected using validation data and then locked. The final precision, recall, F1 and confusion matrices are calculated on the untouched test set. ROC-AUC remains threshold-independent because it uses the continuous prediction probabilities.</p>
         </div>
       </div>
     </div>
@@ -558,7 +561,7 @@
           </div>
           <div class="c">
             <h3>Tunable for the business</h3>
-            <p>The threshold isn&rsquo;t fixed — a campaign with a bigger budget can lower it for more reach; a tighter one can raise it for precision.</p>
+            <p>The threshold is a model-specific operating point selected during validation. It can be revisited for a different business objective, but any new threshold should be selected without using the final test set.</p>
           </div>
         </div>
       </div>
@@ -582,7 +585,7 @@
       </div>
       <a class="repo" href="#" onclick="return false;">View the notebook on GitHub</a>
     </div>
-    <p class="fine">Metrics computed on a stratified 20% held-out test set (2,466 sessions) from the UCI Online Shoppers Purchasing Intention dataset. Built as part of an applied machine learning portfolio.</p>
+    <p class="fine">Metrics computed on the untouched held-out test set (2,466 sessions) from the UCI Online Shoppers Purchasing Intention dataset. Model-specific decision thresholds were selected on validation data before test evaluation. Built as part of an applied machine learning portfolio.</p>
   </div>
 </footer>
 
