@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Predicting Purchase Intent — Online Shoppers ML</title>
+<meta name="description" content="A machine learning pipeline that predicts which online shopping sessions will end in a purchase, from browsing behaviour alone.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14161f;
+    --panel:#1a1e2b;
+    --panel-2:#1f2433;
+    --line:rgba(255,255,255,.09);
+    --text:#eae7de;
+    --muted:#99a0b6;
+    --convert:#f0a93e;
+    --convert-soft:rgba(240,169,62,.14);
+    --convert-dim:#7a5a26;
+    --browse:#5c7aa0;
+    --browse-soft:rgba(92,122,160,.14);
+    --browse-dim:#33455c;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--text);
+    font-family:'IBM Plex Sans',system-ui,sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--convert);color:#14161f;}
+  a{color:inherit;}
+  h1,h2,h3{
+    font-family:'Source Serif 4',Georgia,serif;
+    font-weight:600;
+    margin:0;
+    letter-spacing:-.01em;
+  }
+  .num{font-variant-numeric:tabular-nums;}
+  code, .mono{font-family:'IBM Plex Mono',monospace;}
+
+  a:focus-visible, button:focus-visible{
+    outline:2px solid var(--convert);
+    outline-offset:3px;
+  }
+
+  .wrap{max-width:1080px;margin:0 auto;padding:0 32px;}
+
+  /* ---------- HERO ---------- */
+  header.hero{
+    padding:96px 0 72px;
+    border-bottom:1px solid var(--line);
+    background:
+      radial-gradient(ellipse 800px 400px at 78% -10%, rgba(240,169,62,.10), transparent 60%),
+      radial-gradient(ellipse 700px 380px at 8% 110%, rgba(92,122,160,.10), transparent 60%);
+  }
+  .kicker{
+    font-size:14px;
+    color:var(--muted);
+    max-width:460px;
+    margin-bottom:28px;
+  }
+  h1.title{
+    font-size:clamp(34px,5.4vw,58px);
+    line-height:1.08;
+    max-width:15ch;
+    color:#f4f2ea;
+  }
+  h1.title em{
+    font-style:normal;
+    color:var(--convert);
+  }
+  .hero-sub{
+    max-width:56ch;
+    color:var(--muted);
+    font-size:17px;
+    margin:22px 0 0;
+  }
+  .stat-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:40px;
+    margin-top:56px;
+    padding-top:32px;
+    border-top:1px solid var(--line);
+  }
+  .stat{min-width:140px;}
+  .stat .n{
+    font-family:'Source Serif 4',serif;
+    font-size:38px;
+    font-weight:600;
+    color:#f4f2ea;
+  }
+  .stat .n.accent{color:var(--convert);}
+  .stat .l{
+    font-size:13px;
+    color:var(--muted);
+    margin-top:4px;
+  }
+
+  /* ---------- SECTIONS ---------- */
+  section{
+    padding:76px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .grid-2{
+    display:grid;
+    grid-template-columns:260px 1fr;
+    gap:48px;
+  }
+  .label-col h2{
+    font-size:24px;
+    line-height:1.25;
+    max-width:12ch;
+  }
+  .label-col p.tag{
+    color:var(--muted);
+    font-size:13px;
+    margin-top:10px;
+  }
+  .content-col p{
+    color:#c9c6bb;
+    max-width:62ch;
+    font-size:16px;
+  }
+  .content-col p + p{margin-top:14px;}
+
+  @media (max-width:760px){
+    .grid-2{grid-template-columns:1fr;gap:20px;}
+  }
+
+  /* ---------- FEATURE CHIPS ---------- */
+  .chip-groups{display:flex;flex-direction:column;gap:22px;margin-top:6px;}
+  .chip-group h3{
+    font-family:'IBM Plex Sans';
+    font-weight:500;
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:10px;
+  }
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{
+    border:1px solid var(--line);
+    background:var(--panel);
+    color:#d9d6cc;
+    padding:7px 13px;
+    border-radius:var(--radius);
+    font-size:13.5px;
+    font-family:'IBM Plex Mono';
+  }
+
+  /* ---------- PIPELINE ---------- */
+  .steps{margin-top:6px;}
+  .step{
+    display:grid;
+    grid-template-columns:44px 1fr;
+    gap:18px;
+    padding:20px 0;
+    border-top:1px solid var(--line);
+  }
+  .step:last-child{border-bottom:none;}
+  .step .idx{
+    font-family:'Source Serif 4',serif;
+    font-size:22px;
+    color:var(--muted);
+  }
+  .step h3{
+    font-family:'IBM Plex Sans';
+    font-weight:600;
+    font-size:16px;
+    color:#f4f2ea;
+  }
+  .step p{
+    color:var(--muted);
+    font-size:14.5px;
+    margin:6px 0 0;
+    max-width:56ch;
+  }
+  .step code{
+    display:inline-block;
+    margin-top:10px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    padding:8px 12px;
+    border-radius:var(--radius);
+    font-size:12.5px;
+    color:var(--convert);
+    white-space:pre-wrap;
+  }
+
+  /* ---------- MODEL SCOREBOARD ---------- */
+  .board{margin-top:8px;}
+  .board-head{
+    display:grid;
+    grid-template-columns:1.4fr .9fr 2.2fr;
+    gap:20px;
+    padding:0 0 12px;
+    border-bottom:1px solid var(--line);
+    font-size:12.5px;
+    color:var(--muted);
+  }
+  .row{
+    display:grid;
+    grid-template-columns:1.4fr .9fr 2.2fr;
+    gap:20px;
+    padding:22px 0;
+    border-bottom:1px solid var(--line);
+    align-items:center;
+  }
+  .row.best{background:linear-gradient(90deg,var(--convert-soft),transparent 70%);}
+  .model-name{
+    font-family:'Source Serif 4',serif;
+    font-size:19px;
+    color:#f4f2ea;
+  }
+  .model-name .tag{
+    display:block;
+    font-family:'IBM Plex Sans';
+    font-size:12px;
+    color:var(--muted);
+    margin-top:4px;
+  }
+  .auc{
+    font-family:'Source Serif 4',serif;
+    font-size:26px;
+  }
+  .auc .u{font-size:14px;color:var(--muted);font-family:'IBM Plex Sans';}
+  .metrics{display:flex;flex-direction:column;gap:9px;}
+  .metric{display:grid;grid-template-columns:78px 1fr 40px;gap:10px;align-items:center;}
+  .metric .m-label{font-size:12px;color:var(--muted);}
+  .metric .m-val{font-size:12.5px;color:#d9d6cc;text-align:right;font-variant-numeric:tabular-nums;}
+  .bar-track{height:6px;background:var(--panel-2);border-radius:4px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:4px;}
+  .bar-fill.convert{background:var(--convert);}
+  .bar-fill.browse{background:var(--browse);}
+
+  @media (max-width:760px){
+    .board-head{display:none;}
+    .row{grid-template-columns:1fr;gap:14px;}
+  }
+
+  /* ---------- THRESHOLD ---------- */
+  .thresh-card{
+    display:flex;
+    gap:36px;
+    flex-wrap:wrap;
+    align-items:center;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-left:3px solid var(--convert);
+    border-radius:var(--radius);
+    padding:28px 30px;
+    margin-top:6px;
+  }
+  .thresh-card .big{
+    font-family:'Source Serif 4',serif;
+    font-size:44px;
+    color:var(--convert);
+  }
+  .thresh-card .big .u{font-size:16px;color:var(--muted);font-family:'IBM Plex Sans';}
+  .thresh-card p{color:#c9c6bb;max-width:46ch;font-size:14.5px;margin:0;}
+
+  /* ---------- LEGEND ---------- */
+  .legend{display:flex;gap:22px;margin-top:22px;flex-wrap:wrap;}
+  .legend span{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-size:12.5px;
+    color:var(--muted);
+  }
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .dot.convert{background:var(--convert);}
+  .dot.browse{background:var(--browse);}
+
+  /* ---------- TAKEAWAYS ---------- */
+  .cards3{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:1px;
+    background:var(--line);
+    margin-top:6px;
+    border:1px solid var(--line);
+  }
+  .cards3 .c{
+    background:var(--ink);
+    padding:26px 24px;
+  }
+  .cards3 .c h3{
+    font-family:'IBM Plex Sans';
+    font-weight:600;
+    font-size:15px;
+    color:#f4f2ea;
+  }
+  .cards3 .c p{
+    color:var(--muted);
+    font-size:13.5px;
+    margin-top:8px;
+  }
+  @media (max-width:760px){
+    .cards3{grid-template-columns:1fr;}
+  }
+
+  /* ---------- FOOTER ---------- */
+  footer{padding:48px 0 64px;}
+  .stack{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;}
+  .stack span{
+    font-family:'IBM Plex Mono';
+    font-size:12.5px;
+    color:var(--muted);
+    border:1px solid var(--line);
+    padding:5px 10px;
+    border-radius:var(--radius);
+  }
+  footer .row-foot{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:24px;
+  }
+  footer a.repo{
+    font-size:14px;
+    border-bottom:1px solid var(--browse);
+    padding-bottom:2px;
+  }
+  footer a.repo:hover{border-color:var(--convert);color:var(--convert);}
+  footer .fine{color:var(--muted);font-size:12.5px;margin-top:34px;}
+
+
+  /* ---------- NOTES + DRIVERS ---------- */
+  .note{color:var(--muted);font-size:13.5px;max-width:62ch;margin-top:22px;}
+  .drv{display:grid;grid-template-columns:170px 1fr 48px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);}
+  .drv .f{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#d9d6cc;}
+  .drv .v{text-align:right;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums;}
+  @media (max-width:760px){.drv{grid-template-columns:120px 1fr 44px;}}
+
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto;}
+    *{transition:none !important; animation:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="kicker">Online Shoppers Purchase Intention · classification project</p>
+    <h1 class="title">Most sessions browse. <em>Few convert.</em></h1>
+    <p class="hero-sub">A supervised learning pipeline that separates the two from raw browsing behaviour: page counts, time on page, bounce and exit rates, with no purchase history required. Trained on 12,330 real e-commerce sessions, with each model's decision threshold chosen on a validation split and results reported on an untouched test set.</p>
+    <div class="stat-row">
+      <div class="stat"><div class="n num">12,330</div><div class="l">sessions analysed</div></div>
+      <div class="stat"><div class="n num accent">15.5%</div><div class="l">end in a purchase</div></div>
+      <div class="stat"><div class="n num">91.9%</div><div class="l">test ROC-AUC, XGBoost</div></div>
+      <div class="stat"><div class="n num">17</div><div class="l">behavioural features</div></div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section id="problem">
+    <div class="wrap grid-2">
+      <div class="label-col">
+        <h2>An imbalanced signal</h2>
+        <p class="tag">Why this is harder than it looks</p>
+      </div>
+      <div class="content-col">
+        <p>Across the dataset, roughly 1 in 6.5 sessions results in a purchase. A model that always predicts &ldquo;no purchase&rdquo; is already about 85% accurate, and completely useless for a marketing team trying to find the shoppers worth targeting.</p>
+        <p>The real objective isn&rsquo;t accuracy. It&rsquo;s the trade-off between precision and recall on the minority purchase class. Every model below uses class weighting, and each one&rsquo;s decision threshold is chosen on a validation set rather than on the final test set.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="dataset">
+    <div class="wrap grid-2">
+      <div class="label-col">
+        <h2>What the model sees</h2>
+        <p class="tag">Session-level features, no PII</p>
+      </div>
+      <div class="content-col">
+        <p>Each row is one browsing session, described entirely by behaviour on the site — how the visitor moved through it, not who they are.</p>
+        <div class="chip-groups">
+          <div class="chip-group">
+            <h3>Page activity</h3>
+            <div class="chips">
+              <span class="chip">Administrative</span>
+              <span class="chip">Administrative_Duration</span>
+              <span class="chip">Informational</span>
+              <span class="chip">Informational_Duration</span>
+              <span class="chip">ProductRelated</span>
+              <span class="chip">ProductRelated_Duration</span>
+            </div>
+          </div>
+          <div class="chip-group">
+            <h3>Engagement quality</h3>
+            <div class="chips">
+              <span class="chip">BounceRates</span>
+              <span class="chip">ExitRates</span>
+              <span class="chip">PageValues</span>
+              <span class="chip">SpecialDay</span>
+            </div>
+          </div>
+          <div class="chip-group">
+            <h3>Visit context</h3>
+            <div class="chips">
+              <span class="chip">Month</span>
+              <span class="chip">OperatingSystems</span>
+              <span class="chip">Browser</span>
+              <span class="chip">Region</span>
+              <span class="chip">TrafficType</span>
+              <span class="chip">VisitorType</span>
+              <span class="chip">Weekend</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pipeline">
+    <div class="wrap grid-2">
+      <div class="label-col">
+        <h2>The pipeline</h2>
+        <p class="tag">Load to locked threshold</p>
+      </div>
+      <div class="content-col">
+        <div class="steps">
+          <div class="step">
+            <div class="idx num">01</div>
+            <div>
+              <h3>Stratified train / validation / test split</h3>
+              <p>The purchase rate holds at about 15.5% in every split, so the minority class is represented consistently.</p>
+              <code>train 7,891  &rarr;  validation 1,973  &rarr;  untouched test 2,466</code>
+            </div>
+          </div>
+          <div class="step">
+            <div class="idx num">02</div>
+            <div>
+              <h3>Preprocess, fitted on training data only</h3>
+              <p>Numeric features are median-imputed and standardised. The seven categorical columns are one-hot encoded, giving 75 model inputs. Every step is fitted on the training split and only applied to validation and test.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="idx num">03</div>
+            <div>
+              <h3>Three candidate models</h3>
+              <p>Logistic Regression as a transparent baseline, Random Forest for non-linear interactions, XGBoost for gradient-boosted performance.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="idx num">04</div>
+            <div>
+              <h3>Weight the minority class</h3>
+              <p>Logistic Regression and Random Forest use <span class="mono">class_weight="balanced"</span>. XGBoost gets an explicit <span class="mono">scale_pos_weight</span> computed from the training class ratio.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="idx num">05</div>
+            <div>
+              <h3>Choose thresholds on validation, then lock them</h3>
+              <p>Each model&rsquo;s cutoff is the one that maximises F1 on the validation set. It is fixed before the test set is scored, so no test label influences it.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="models">
+    <div class="wrap grid-2">
+      <div class="label-col">
+        <h2>Model scoreboard</h2>
+        <p class="tag">Final evaluation on 2,466 untouched test sessions</p>
+      </div>
+      <div class="content-col">
+        <div class="board">
+          <div class="board-head">
+            <span>Model</span>
+            <span>ROC-AUC</span>
+            <span>Purchase-class precision, recall, F1 and average precision</span>
+          </div>
+
+          <div class="row">
+            <div class="model-name">Logistic Regression<span class="tag">balanced weights &middot; threshold 0.65</span></div>
+            <div class="auc num">89.1<span class="u">%</span></div>
+            <div class="metrics">
+              <div class="metric"><span class="m-label">Precision</span><div class="bar-track"><div class="bar-fill browse" style="width:61%"></div></div><span class="m-val num">0.61</span></div>
+              <div class="metric"><span class="m-label">Recall</span><div class="bar-track"><div class="bar-fill browse" style="width:62%"></div></div><span class="m-val num">0.62</span></div>
+              <div class="metric"><span class="m-label">F1</span><div class="bar-track"><div class="bar-fill browse" style="width:62%"></div></div><span class="m-val num">0.62</span></div>
+              <div class="metric"><span class="m-label">Avg. precision</span><div class="bar-track"><div class="bar-fill browse" style="width:62%"></div></div><span class="m-val num">0.622</span></div>
+            </div>
+          </div>
+
+          <div class="row best">
+            <div class="model-name">Random Forest<span class="tag">300 trees &middot; threshold 0.31</span></div>
+            <div class="auc num">91.7<span class="u">%</span></div>
+            <div class="metrics">
+              <div class="metric"><span class="m-label">Precision</span><div class="bar-track"><div class="bar-fill convert" style="width:63%"></div></div><span class="m-val num">0.63</span></div>
+              <div class="metric"><span class="m-label">Recall</span><div class="bar-track"><div class="bar-fill convert" style="width:71%"></div></div><span class="m-val num">0.71</span></div>
+              <div class="metric"><span class="m-label">F1</span><div class="bar-track"><div class="bar-fill convert" style="width:67%"></div></div><span class="m-val num">0.67</span></div>
+              <div class="metric"><span class="m-label">Avg. precision</span><div class="bar-track"><div class="bar-fill convert" style="width:72%"></div></div><span class="m-val num">0.722</span></div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="model-name">XGBoost<span class="tag">400 boosted trees &middot; threshold 0.605</span></div>
+            <div class="auc num" style="color:var(--convert)">91.9<span class="u">%</span></div>
+            <div class="metrics">
+              <div class="metric"><span class="m-label">Precision</span><div class="bar-track"><div class="bar-fill browse" style="width:62%"></div></div><span class="m-val num">0.62</span></div>
+              <div class="metric"><span class="m-label">Recall</span><div class="bar-track"><div class="bar-fill browse" style="width:67%"></div></div><span class="m-val num">0.67</span></div>
+              <div class="metric"><span class="m-label">F1</span><div class="bar-track"><div class="bar-fill browse" style="width:64%"></div></div><span class="m-val num">0.64</span></div>
+              <div class="metric"><span class="m-label">Avg. precision</span><div class="bar-track"><div class="bar-fill browse" style="width:72%"></div></div><span class="m-val num">0.719</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="legend">
+          <span><i class="dot convert"></i>leads the field on this metric</span>
+          <span><i class="dot browse"></i>another model scores higher</span>
+        </div>
+        <p class="note">Random Forest and XGBoost are effectively tied. XGBoost&rsquo;s ROC-AUC lead is 0.002 and Random Forest&rsquo;s F1 lead is 0.022, both small enough that a single split with 382 test purchases could reverse them. Both clearly beat the Logistic Regression baseline.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="threshold">
+    <div class="wrap grid-2">
+      <div class="label-col">
+        <h2>Validation-selected cutoffs</h2>
+        <p class="tag">Chosen before the final test</p>
+      </div>
+      <div class="content-col">
+        <p>A probability becomes a class label only after a decision threshold is applied. The three models produce differently calibrated probabilities, so each gets its own cutoff, picked to maximise F1 on the validation set.</p>
+        <div class="thresh-card">
+          <div><div class="big num">0.65<span class="u">LR</span></div></div>
+          <div><div class="big num">0.31<span class="u">RF</span></div></div>
+          <div><div class="big num">0.605<span class="u">XGB</span></div></div>
+          <p>Validation F1 runs a little above test F1 for every model (0.657 vs 0.616, 0.694 vs 0.666, 0.701 vs 0.644). That gap is the expected optimism of choosing a cutoff on the data it is scored on, which is why the test figures are the ones to quote. ROC-AUC does not depend on a threshold.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="drivers">
+    <div class="wrap grid-2">
+      <div class="label-col">
+        <h2>What the model leans on</h2>
+        <p class="tag">XGBoost feature importance</p>
+      </div>
+      <div class="content-col">
+        <div>
+          <div class="drv"><span class="f">PageValues</span><div class="bar-track"><div class="bar-fill convert" style="width:100%"></div></div><span class="v">0.162</span></div>
+          <div class="drv"><span class="f">Month, code 7</span><div class="bar-track"><div class="bar-fill convert" style="width:55%"></div></div><span class="v">0.089</span></div>
+          <div class="drv"><span class="f">Month, code 6</span><div class="bar-track"><div class="bar-fill convert" style="width:36%"></div></div><span class="v">0.058</span></div>
+          <div class="drv"><span class="f">Month, code 5</span><div class="bar-track"><div class="bar-fill convert" style="width:29%"></div></div><span class="v">0.047</span></div>
+          <div class="drv"><span class="f">Browser, code 13</span><div class="bar-track"><div class="bar-fill browse" style="width:18%"></div></div><span class="v">0.030</span></div>
+          <div class="drv"><span class="f">VisitorType, code 2</span><div class="bar-track"><div class="bar-fill browse" style="width:11%"></div></div><span class="v">0.018</span></div>
+        </div>
+        <p class="note">One-hot encoding gives each month its own column, so the Month bars are individual months. The six Month columns in the top 15 add up to about 0.24, more than PageValues alone. Importance shows what the model uses, not what causes a purchase, and the dataset covers a single year, so month effects may be seasonal patterns specific to that year.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="takeaways">
+    <div class="wrap grid-2">
+      <div class="label-col">
+        <h2>What this enables</h2>
+        <p class="tag">From model to action</p>
+      </div>
+      <div class="content-col">
+        <div class="cards3">
+          <div class="c">
+            <h3>Target the right sessions</h3>
+            <p>Score live sessions in real time and route the highest-probability visitors into retention offers or exit-intent prompts before they leave.</p>
+          </div>
+          <div class="c">
+            <h3>Explainable baseline</h3>
+            <p>Logistic Regression&rsquo;s coefficients give a transparent starting point for stakeholders who need to trust the &ldquo;why,&rdquo; not just the score.</p>
+          </div>
+          <div class="c">
+            <h3>Tunable for the business</h3>
+            <p>The threshold isn&rsquo;t fixed — a campaign with a bigger budget can lower it for more reach; a tighter one can raise it for precision.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row-foot">
+      <div>
+        <h2 style="font-size:20px;">Online Shoppers Purchase Intention</h2>
+        <div class="stack">
+          <span>Python</span>
+          <span>pandas</span>
+          <span>scikit-learn</span>
+          <span>XGBoost</span>
+          <span>matplotlib</span>
+        </div>
+      </div>
+      <a class="repo" href="#" onclick="return false;">View the notebook on GitHub</a>
+    </div>
+    <p class="fine">Metrics computed on the untouched held-out test set (2,466 sessions) from the UCI Online Shoppers Purchasing Intention dataset. Decision thresholds were selected on a separate validation split before test evaluation. Built as part of an applied machine learning portfolio.</p>
+  </div>
+</footer>
+
+<script>
+  // Gentle count-up for the hero stats on load, skipped for reduced-motion users.
+  document.addEventListener('DOMContentLoaded', function () {
+    var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    var targets = document.querySelectorAll('.stat .n');
+    var endValues = [];
+    targets.forEach(function (el) {
+      var raw = el.textContent.trim();
+      endValues.push(raw);
+      el.textContent = raw.replace(/[0-9.]/g, '0');
+    });
+
+    var duration = 900;
+    var start = null;
+
+    function ease(t){ return 1 - Math.pow(1 - t, 3); }
+
+    function frame(ts){
+      if (!start) start = ts;
+      var p = Math.min((ts - start) / duration, 1);
+      var e = ease(p);
+      targets.forEach(function (el, i) {
+        var end = endValues[i];
+        var isPercent = end.indexOf('%') !== -1;
+        var numPart = parseFloat(end.replace(/,/g, ''));
+        if (isNaN(numPart)) { el.textContent = end; return; }
+        var current = numPart * e;
+        var decimals = end.indexOf('.') !== -1 ? 1 : 0;
+        var formatted = current.toLocaleString('en-US', {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals
+        });
+        el.textContent = formatted + (isPercent ? '%' : '');
+      });
+      if (p < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  });
+</script>
+
+</body>
+</html>
